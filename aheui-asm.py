@@ -104,7 +104,6 @@ def place(commands):
             board.append([rotate_to_down(comm)])
         elif (
             not is_branch(i - 1) and
-            not is_branch(i + 1) and
             sorted(goto) == [i - 1, i + 1]
         ):
             if goto[0] == i + 1:
@@ -116,25 +115,46 @@ def place(commands):
             up_target = goto[1]
             down_target = goto[0]
             comm = rotate_to_down(comm)
-            if down_target < i < up_target:
+
+            if down_target < i < up_target or up_target == i + 1:
                 up_target, down_target = down_target, up_target
                 comm = rotate_to_up(comm)
-            board.append([COMM_YU])
-            if up_target == down_target:
-                board.append([COMM_YU])
-            else:
-                lines[up_target].append(len(board))
-                board.append([COMM_A])
-            board.append([comm])
-            lines[down_target].append(len(board))
-            board.append([COMM_A])
 
-    line_height = 1
-    for k in sorted(lines, key=lambda k: (-len(lines[k]), k)):
+            if up_target != i - 1 or is_branch(i - 1):
+                board.append([COMM_YU])
+
+                if up_target == down_target:
+                    board.append([COMM_YU])
+                else:
+                    lines[up_target].append(len(board))
+                    board.append([COMM_A])
+
+            board.append([comm])
+
+            if down_target != i + 1:
+                lines[down_target].append(len(board))
+                board.append([COMM_A])
+
+    if comm_row:
+        comm_row.append(comm_row[0])
+
+    line_ends = []
+
+    for k in sorted(lines, key=lambda k: (max(k, lines[k][-1]), min(k, lines[k][0]))):
         starts = lines[k]
-        starts.sort()
         stop = comm_row[k]
-        for i in range(min(starts[0], stop), max(starts[-1], stop) + 1):
+        lo, hi = min(stop, starts[0]), max(stop, starts[-1])
+
+        for iline in range(len(line_ends)):
+            if line_ends[iline] < lo:
+                break
+        else:
+            line_ends.append(-1)
+            iline = len(line_ends) - 1
+        line_ends[iline] = hi
+        line_height = iline * 2 + 1
+
+        for i in range(lo, hi + 1):
             while len(board[i]) <= line_height:
                 board[i].append(EMPTY)
 
