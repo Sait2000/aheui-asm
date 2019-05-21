@@ -120,8 +120,11 @@ def place(commands):
                 up_target, down_target = down_target, up_target
                 comm = rotate_to_up(comm)
             board.append([COMM_YU])
-            lines[up_target].append(len(board))
-            board.append([COMM_A])
+            if up_target == down_target:
+                board.append([COMM_YU])
+            else:
+                lines[up_target].append(len(board))
+                board.append([COMM_A])
             board.append([comm])
             lines[down_target].append(len(board))
             board.append([COMM_A])
