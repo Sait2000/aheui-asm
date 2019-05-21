@@ -65,6 +65,12 @@ def parse(s):
     return commands
 
 
+def rotate_to_up(c):
+    cc = ord(c) - 0xAC00
+    cc = (cc // 588) * 588 + 8 * 28 + (cc % 28)
+    return u'%c' % (cc + 0xAC00)
+
+
 def rotate_to_down(c):
     cc = ord(c) - 0xAC00
     cc = (cc // 588) * 588 + 13 * 28 + (cc % 28)
@@ -85,26 +91,46 @@ COMM_YU = u'\uc720'
 def place(commands):
     comm_row = []
     board = []
-    for comm, goto in commands:
-        comm_row.append(len(board))
-        comm = rotate_to_down(comm)
-        if goto is not None:
-            board.append([COMM_YU])
-            board.append([COMM_A])
-        board.append([comm])
-        if goto is not None:
-            board.append([COMM_A])
+
+    def is_branch(i):
+        return 0 <= i < len(commands) and commands[i][1] is not None
 
     lines = defaultdict(list)
-    for i, (_comm, goto) in enumerate(commands):
-        if goto is None: continue
-        lines[comm_row[goto[0]]].append(comm_row[i] + 3)
-        lines[comm_row[goto[1]]].append(comm_row[i] + 1)
+
+    for i, (comm, goto) in enumerate(commands):
+        comm_row.append(len(board))
+
+        if goto is None:
+            board.append([rotate_to_down(comm)])
+        elif (
+            not is_branch(i - 1) and
+            not is_branch(i + 1) and
+            sorted(goto) == [i - 1, i + 1]
+        ):
+            if goto[0] == i + 1:
+                comm = rotate_to_down(comm)
+            else:
+                comm = rotate_to_up(comm)
+            board.append([comm])
+        else:
+            up_target = goto[1]
+            down_target = goto[0]
+            comm = rotate_to_down(comm)
+            if down_target < i < up_target:
+                up_target, down_target = down_target, up_target
+                comm = rotate_to_up(comm)
+            board.append([COMM_YU])
+            lines[up_target].append(len(board))
+            board.append([COMM_A])
+            board.append([comm])
+            lines[down_target].append(len(board))
+            board.append([COMM_A])
 
     line_height = 1
-    for stop in sorted(lines, key=lambda k: (-len(lines[k]), k)):
-        starts = lines[stop]
+    for k in sorted(lines, key=lambda k: (-len(lines[k]), k)):
+        starts = lines[k]
         starts.sort()
+        stop = comm_row[k]
         for i in range(min(starts[0], stop), max(starts[-1], stop) + 1):
             while len(board[i]) <= line_height:
                 board[i].append(EMPTY)
